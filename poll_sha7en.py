@@ -130,11 +130,12 @@ def main():
                         f"{station}: {len(now_free)} charger(s) free now "
                         f"({', '.join(sorted(now_free))})"
                     )
-                    notify("\u26a1 Charger available!", msg)
+                    notify("Charger available!", msg)
                 prev_free[station] = now_free
 
         time.sleep(CHECK_INTERVAL)
 
 
 if __name__ == "__main__":
+    notify("Charger available!", "Setup test - if you see this, it works")
     main()
