@@ -12,7 +12,7 @@ on:
 # and start fresh rather than piling jobs up.
 concurrency:
   group: sha7en-watcher
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   check:
