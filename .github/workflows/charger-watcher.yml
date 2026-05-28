@@ -1,0 +1,33 @@
+name: Sha7en charger watcher
+
+on:
+  schedule:
+    # Every 15 minutes. GitHub's minimum is 5, but it often delays starts under
+    # load, so 15 gives breathing room. Each run then polls every 60s for ~14
+    # minutes (see poll_sha7en.py), so coverage is effectively continuous.
+    - cron: '*/15 * * * *'
+  workflow_dispatch: {}   # lets you run it manually from the Actions tab to test
+
+# If a run is somehow still going when the next is scheduled, drop the old one
+# and start fresh rather than piling jobs up.
+concurrency:
+  group: sha7en-watcher
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Run charger watcher
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+        run: python poll_sha7en.py
