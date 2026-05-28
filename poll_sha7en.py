@@ -13,6 +13,7 @@ Designed to run inside a single GitHub Actions job: it checks every
 CHECK_INTERVAL seconds for RUN_DURATION seconds, then exits. The workflow's
 cron schedule starts it again, giving near-continuous coverage while staying
 within GitHub's 5-minute minimum scheduling interval.
+commit to trigger the workflow
 """
 
 import os
