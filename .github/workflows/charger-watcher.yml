@@ -30,4 +30,4 @@ jobs:
       - name: Run charger watcher
         env:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
-        run: python poll_sha7en.py
+        run: python -u poll_sha7en.py
