@@ -35,7 +35,7 @@ STATION_IDS = ["77"]
 # Anyone who knows the topic name can read/send, so make it long and random.
 NTFY_TOPIC = os.environ.get("NTFY_TOPIC", "").strip()
 
-CHECK_INTERVAL = 60          # seconds between checks
+CHECK_INTERVAL = 180          # seconds between checks
 RUN_DURATION = 14 * 60       # how long this single run keeps checking (seconds)
 
 # Headers copied from the intercepted request. The x-device-id is just an
