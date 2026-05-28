@@ -137,5 +137,4 @@ def main():
 
 
 if __name__ == "__main__":
-    notify("Charger available!", "Setup test - if you see this, it works")
     main()
