@@ -104,37 +104,91 @@ def notify(title, message):
         print(f"notify failed: {e}")
 
 
+STATE_FILE = "state.json"
+
+
+def load_state():
+    """Read the previous run's state, if any."""
+    try:
+        with open(STATE_FILE) as f:
+            data = json.load(f)
+        return {
+            "prev_free": {k: set(v) for k, v in data.get("prev_free", {}).items()},
+            "alerted_free": {k: set(v) for k, v in data.get("alerted_free", {}).items()},
+        }
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {"prev_free": None, "alerted_free": {}}
+
+
+def save_state(prev_free, alerted_free):
+    """Persist state for the next run to pick up."""
+    data = {
+        "prev_free": {k: sorted(v) for k, v in (prev_free or {}).items()},
+        "alerted_free": {k: sorted(v) for k, v in alerted_free.items()},
+    }
+    with open(STATE_FILE, "w") as f:
+        json.dump(data, f, indent=2)
+
+
 def main():
+    state = load_state()
+    prev_free = state["prev_free"]
+    alerted_free = state["alerted_free"]
     deadline = time.time() + RUN_DURATION
-    prev_free = None  # set on first successful check (silent baseline)
 
-    while time.time() < deadline:
-        try:
-            free = available_chargers(fetch_status())
-        except Exception as e:  # network hiccup, bad JSON, etc.
-            print(f"check failed: {e}")
+    try:
+        while time.time() < deadline:
+            try:
+                free = available_chargers(fetch_status())
+            except Exception as e:
+                print(f"check failed: {e}")
+                time.sleep(CHECK_INTERVAL)
+                continue
+
+            snapshot = {k: sorted(v) for k, v in free.items()}
+            print(f"{time.strftime('%H:%M:%S')} status: {snapshot}")
+
+            if prev_free is None:
+                # First time ever (no previous state): silent baseline.
+                prev_free = {k: set(v) for k, v in free.items()}
+            else:
+                for station, now_free in free.items():
+                    was_free = prev_free.get(station, set())
+                    newly_free = now_free - was_free
+                    newly_taken = was_free - now_free
+
+                    if newly_free:
+                        msg = (
+                            f"{station}: {len(now_free)} charger(s) free now "
+                            f"({', '.join(sorted(now_free))})"
+                        )
+                        notify("Charger available!", msg)
+                        alerted_free.setdefault(station, set()).update(newly_free)
+
+                    taken_alertable = newly_taken & alerted_free.get(station, set())
+                    if taken_alertable:
+                        still_free = sorted(now_free)
+                        if still_free:
+                            msg = (
+                                f"{station}: charger {', '.join(sorted(taken_alertable))} just taken. "
+                                f"Still free: {', '.join(still_free)}"
+                            )
+                        else:
+                            msg = (
+                                f"{station}: charger {', '.join(sorted(taken_alertable))} just taken. "
+                                f"No chargers free now."
+                            )
+                        notify("Charger taken", msg)
+                        alerted_free[station] -= taken_alertable
+
+                    prev_free[station] = now_free
+
+            # Save after every iteration so even if the runner is killed
+            # mid-loop (by timeout, cancel, etc.) we don't lose recent state.
+            save_state(prev_free, alerted_free)
             time.sleep(CHECK_INTERVAL)
-            continue
-
-        snapshot = {k: sorted(v) for k, v in free.items()}
-        print(f"{time.strftime('%H:%M:%S')} status: {snapshot}")
-
-        if prev_free is None:
-            # First reading of the run: record it, don't alert. We only want to
-            # be told about NEW openings, not chargers that were already free.
-            prev_free = {k: set(v) for k, v in free.items()}
-        else:
-            for station, now_free in free.items():
-                newly_free = now_free - prev_free.get(station, set())
-                if newly_free:
-                    msg = (
-                        f"{station}: {len(now_free)} charger(s) free now "
-                        f"({', '.join(sorted(now_free))})"
-                    )
-                    notify("Charger available!", msg)
-                prev_free[station] = now_free
-
-        time.sleep(CHECK_INTERVAL)
+    finally:
+        save_state(prev_free, alerted_free)
 
 
 if __name__ == "__main__":
