@@ -1,11 +1,11 @@
 name: Sha7en charger watcher
 
 on:
-  schedule:
+  # schedule:
     # Every 15 minutes. GitHub's minimum is 5, but it often delays starts under
     # load, so 15 gives breathing room. Each run then polls every 60s for ~14
     # minutes (see poll_sha7en.py), so coverage is effectively continuous.
-    - cron: '*/15 * * * *'
+    # - cron: '*/15 * * * *'
   workflow_dispatch: {}   # lets you run it manually from the Actions tab to test
 
 # If a run is somehow still going when the next is scheduled, drop the old one
@@ -27,7 +27,23 @@ jobs:
         with:
           python-version: '3.12'
 
+      - name: Restore state cache
+        id: state-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: state.json
+          key: sha7en-state-${{ github.run_id }}
+          restore-keys: |
+            sha7en-state-
+
       - name: Run charger watcher
         env:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
         run: python -u poll_sha7en.py
+
+      - name: Save state cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: state.json
+          key: sha7en-state-${{ github.run_id }}
